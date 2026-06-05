@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 30% 98%;
+    --foreground: 20 14% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 12%;
+
+    /* Deep teal — refined, architectural */
+    --primary: 176 61% 19%;
+    --primary-foreground: 40 30% 98%;
+
+    --secondary: 36 24% 94%;
+    --secondary-foreground: 20 14% 18%;
+
+    --muted: 36 18% 95%;
+    --muted-foreground: 25 8% 45%;
+
+    --accent: 28 62% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 55% 33%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 33 90% 44%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 30 14% 89%;
+    --input: 30 14% 89%;
+    --ring: 176 61% 24%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 200 18% 8%;
+    --foreground: 40 20% 94%;
+    --card: 200 16% 11%;
+    --card-foreground: 40 20% 94%;
+    --popover: 200 16% 11%;
+    --popover-foreground: 40 20% 94%;
+    --primary: 174 50% 50%;
+    --primary-foreground: 200 18% 8%;
+    --secondary: 200 12% 18%;
+    --secondary-foreground: 40 20% 94%;
+    --muted: 200 12% 16%;
+    --muted-foreground: 40 8% 62%;
+    --accent: 28 62% 56%;
+    --accent-foreground: 200 18% 8%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 50% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 33 80% 52%;
+    --warning-foreground: 0 0% 100%;
+    --border: 200 12% 20%;
+    --input: 200 12% 22%;
+    --ring: 174 50% 50%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    @apply bg-primary/15;
+  }
+}
+
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    content: '';
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  }
+
+  .glass {
+    @apply bg-card/80 backdrop-blur-md;
+  }
+}
+
+/* Custom scrollbar — subtle */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-border;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/40;
+  background-clip: content-box;
+}

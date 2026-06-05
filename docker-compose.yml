@@ -1,0 +1,22 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Foundry-Hub CLIENT — standalone frontend.
+# Builds and serves the Next.js app on port 3000.
+#
+#   cp .env.example .env      # set NEXT_PUBLIC_API_URL to your running API
+#   docker compose up -d --build
+#
+# This app is fully independent — it only needs the API URL, not the database.
+# ──────────────────────────────────────────────────────────────────────────
+services:
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    container_name: foundry_client
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "${CLIENT_PORT:-3000}:3000"
