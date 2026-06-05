@@ -171,11 +171,11 @@ function ReviewCard({
           <p className="mt-1 text-xs text-muted-foreground">{product.dimensions}</p>
         )}
 
-        {!readOnly && (
+        {!readOnly && product.approvalStatus !== 'approved' && (
           <div className="mt-4 flex gap-2">
             <Button
               size="sm"
-              variant={product.approvalStatus === 'approved' ? 'default' : 'outline'}
+              variant="outline"
               className="flex-1"
               loading={decide.isPending}
               onClick={() => decide.mutate('approved')}
