@@ -81,8 +81,8 @@ export default function ClientViewPage() {
               {isPreview ? (
                 <div className="mt-4 max-w-2xl rounded-lg border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">Preview mode</span> — this
-                  is how your client sees the project. To record a decision on their
-                  behalf, use the product dialog in your workspace.
+                  is how your client sees the project. Approve and reject decisions
+                  can only be made by the client.
                 </div>
               ) : (
                 <p className="mt-4 max-w-2xl text-sm text-muted-foreground">

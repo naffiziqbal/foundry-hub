@@ -324,8 +324,8 @@ export function ProductDetailDialog({
               </Button>
             </>
           )}
-          {/* Client / designer approval decision */}
-          {!edit && (
+          {/* Client approval decision */}
+          {!isDesigner && !edit && (
             <div className="ml-auto flex gap-2">
               <Button
                 size="sm"
