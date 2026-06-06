@@ -17,6 +17,8 @@ import {
   FileText,
   Sofa,
   Lightbulb,
+  Package,
+  ShoppingCart,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -28,8 +30,20 @@ import { Skeleton, EmptyState, Separator } from '@/components/ui/misc';
 import { Dialog, DialogHeader, DialogFooter } from '@/components/ui/dialog';
 import { Input, Label, Textarea, Select } from '@/components/ui/input';
 import { ProjectDialog } from '@/components/dialogs/project-dialog';
-import { formatDate, titleCase } from '@/lib/utils';
-import type { Project, Room, Schedule, ScheduleType } from '@/lib/types';
+import { formatCurrency, formatDate, titleCase } from '@/lib/utils';
+import type {
+  BudgetSummary,
+  OrderStatus,
+  ProcurementItem,
+  ProcurementSummary,
+  Project,
+  PurchaseOrder,
+  PurchaseOrderStatus,
+  Room,
+  Schedule,
+  ScheduleType,
+  Vendor,
+} from '@/lib/types';
 
 const SCHEDULE_ICON: Record<ScheduleType, any> = {
   material: FileText,
@@ -37,7 +51,7 @@ const SCHEDULE_ICON: Record<ScheduleType, any> = {
   fixture: Lightbulb,
 };
 
-type Tab = 'rooms' | 'schedules' | 'details';
+type Tab = 'rooms' | 'schedules' | 'procurement' | 'details';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -98,6 +112,9 @@ export default function ProjectDetailPage() {
       label: `Schedules${schedules ? ` (${schedules.length})` : ''}`,
       icon: ClipboardList,
     },
+    ...(isDesigner
+      ? [{ key: 'procurement' as Tab, label: 'Procurement', icon: ShoppingCart }]
+      : []),
     { key: 'details', label: 'Details', icon: Settings },
   ];
 
@@ -126,6 +143,8 @@ export default function ProjectDetailPage() {
           </div>
         }
       />
+
+      {isDesigner && <BudgetCard projectId={id} />}
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 border-b border-border">
@@ -240,6 +259,9 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
+      {/* Procurement */}
+      {tab === 'procurement' && isDesigner && <ProcurementBoard projectId={id} />}
+
       {/* Details */}
       {tab === 'details' && (
         <Card className="max-w-2xl p-6">
@@ -253,6 +275,10 @@ export default function ProjectDetailPage() {
             <Detail label="Status" value={titleCase(project.status)} />
             <Detail label="Start date" value={formatDate(project.startDate)} />
             <Detail label="End date" value={formatDate(project.endDate)} />
+            <Detail
+              label="FF&E budget"
+              value={project.budget != null ? formatCurrency(Number(project.budget)) : null}
+            />
             <Detail label="Notes" value={project.notes} />
           </dl>
 
@@ -290,6 +316,383 @@ export default function ProjectDetailPage() {
         onClose={() => setScheduleOpen(false)}
         projectId={id}
       />
+    </div>
+  );
+}
+
+const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
+  { value: 'none', label: 'Not started' },
+  { value: 'to_order', label: 'To order' },
+  { value: 'ordered', label: 'Ordered' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'installed', label: 'Installed' },
+];
+
+function ProcurementBoard({ projectId }: { projectId: string }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ['procurement', projectId],
+    queryFn: () => api.get<ProcurementSummary>(`/projects/${projectId}/procurement`),
+  });
+
+  const update = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: any }) =>
+      api.patch(`/products/${id}/procurement`, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['procurement', projectId] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  if (isLoading) return <Skeleton className="h-64 rounded-xl" />;
+  if (!data?.items.length) {
+    return (
+      <EmptyState
+        icon={Package}
+        title="Nothing to procure yet"
+        description="Approved products appear here so you can track ordering, shipping and installation."
+      />
+    );
+  }
+
+  const warnings = data.items.filter((i) => i.urgency !== 'ok');
+
+  return (
+    <div className="space-y-4">
+      {warnings.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <span className="font-medium">
+            {warnings.length} item{warnings.length === 1 ? '' : 's'} need ordering soon:
+          </span>{' '}
+          {warnings
+            .map((w) => `${w.name} (order by ${formatDate(w.orderByDate)})`)
+            .join(' · ')}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
+        {ORDER_STATUSES.map((s) => (
+          <span key={s.value}>
+            {s.label}: <span className="font-medium text-foreground">{data.counts[s.value] ?? 0}</span>
+          </span>
+        ))}
+      </div>
+
+      <Card className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <th className="px-4 py-3 font-medium">Product</th>
+              <th className="px-2 py-3 font-medium">Room</th>
+              <th className="px-2 py-3 font-medium">Vendor</th>
+              <th className="px-2 py-3 font-medium">Price</th>
+              <th className="px-2 py-3 font-medium">Lead (d)</th>
+              <th className="px-2 py-3 font-medium">Required by</th>
+              <th className="px-2 py-3 font-medium">Order by</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.items.map((item) => (
+              <ProcurementRow
+                key={item.id}
+                item={item}
+                onPatch={(patch) => update.mutate({ id: item.id, patch })}
+              />
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <PurchaseOrdersSection projectId={projectId} items={data.items} />
+    </div>
+  );
+}
+
+const PO_STATUSES: PurchaseOrderStatus[] = ['draft', 'sent', 'confirmed', 'cancelled'];
+
+function PurchaseOrdersSection({
+  projectId,
+  items,
+}: {
+  projectId: string;
+  items: ProcurementItem[];
+}) {
+  const qc = useQueryClient();
+  const { data: pos } = useQuery({
+    queryKey: ['purchase-orders', projectId],
+    queryFn: () => api.get<PurchaseOrder[]>(`/projects/${projectId}/purchase-orders`),
+  });
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: () => api.get<Vendor[]>('/vendors'),
+  });
+  const [vendorId, setVendorId] = useState('');
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['purchase-orders', projectId] });
+    qc.invalidateQueries({ queryKey: ['procurement', projectId] });
+  };
+
+  const create = useMutation({
+    mutationFn: () => api.post(`/projects/${projectId}/purchase-orders`, { vendorId }),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Purchase order drafted');
+      setVendorId('');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const setStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: PurchaseOrderStatus }) =>
+      api.patch(`/purchase-orders/${id}/status`, { status }),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Purchase order updated');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const exportPdf = useMutation({
+    mutationFn: (id: string) => api.post<{ url: string }>(`/purchase-orders/${id}/export`),
+    onSuccess: ({ url }) => {
+      invalidate();
+      window.open(url, '_blank');
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Export failed (is Spaces configured?)'),
+  });
+
+  // Vendors that still have to-order items (the ones worth drafting a PO for)
+  const toOrderVendorIds = new Set(
+    items.filter((i) => i.orderStatus === 'to_order' && i.vendorId).map((i) => i.vendorId),
+  );
+  const eligibleVendors = vendors?.filter((v) => toOrderVendorIds.has(v.id)) ?? [];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-medium">Purchase orders</h3>
+        <div className="flex items-center gap-2">
+          <Select
+            className="h-9 w-56"
+            value={vendorId}
+            onChange={(e) => setVendorId(e.target.value)}
+          >
+            <option value="">Select vendor to order from…</option>
+            {eligibleVendors.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </Select>
+          <Button
+            size="sm"
+            disabled={!vendorId}
+            loading={create.isPending}
+            onClick={() => create.mutate()}
+          >
+            <Plus className="h-4 w-4" /> Draft PO
+          </Button>
+        </div>
+      </div>
+
+      {!pos?.length ? (
+        <p className="text-sm text-muted-foreground">
+          No purchase orders yet. Mark approved products “To order”, link them to a
+          vendor, then draft a PO.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {pos.map((po) => (
+            <Card key={po.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {po.number} · {po.vendorName}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {po.lines.length} line{po.lines.length === 1 ? '' : 's'} ·{' '}
+                  {formatCurrency(Number(po.total), po.currency)}
+                  {po.discountPct != null && ` (incl. ${Number(po.discountPct)}% trade discount)`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={exportPdf.isPending && exportPdf.variables === po.id}
+                  onClick={() => exportPdf.mutate(po.id)}
+                >
+                  <FileText className="h-4 w-4" /> PDF
+                </Button>
+                <Select
+                  className="h-9 w-32"
+                  value={po.status}
+                  onChange={(e) =>
+                    setStatus.mutate({ id: po.id, status: e.target.value as PurchaseOrderStatus })
+                  }
+                >
+                  {PO_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {titleCase(s)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProcurementRow({
+  item,
+  onPatch,
+}: {
+  item: ProcurementItem;
+  onPatch: (patch: any) => void;
+}) {
+  const urgencyClass =
+    item.urgency === 'overdue'
+      ? 'text-destructive font-medium'
+      : item.urgency === 'urgent'
+        ? 'text-warning font-medium'
+        : 'text-muted-foreground';
+
+  return (
+    <tr className="border-b border-border last:border-0">
+      <td className="px-4 py-2.5">
+        <div className="flex items-center gap-2.5">
+          {item.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.imageUrl}
+              alt=""
+              className="h-9 w-9 rounded-md object-cover"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted">
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
+          <span className="line-clamp-1 max-w-52 font-medium">{item.name}</span>
+        </div>
+      </td>
+      <td className="px-2 py-2.5 text-muted-foreground">{item.roomName}</td>
+      <td className="px-2 py-2.5 text-muted-foreground">{item.vendor ?? '—'}</td>
+      <td className="px-2 py-2.5">
+        {item.price != null ? formatCurrency(item.price, item.currency) : '—'}
+      </td>
+      <td className="px-2 py-2.5">
+        <Input
+          type="number"
+          min="0"
+          className="h-8 w-16 px-2 text-sm"
+          defaultValue={item.leadTimeDays ?? ''}
+          onBlur={(e) =>
+            onPatch({
+              leadTimeDays: e.target.value === '' ? null : Number(e.target.value),
+            })
+          }
+        />
+      </td>
+      <td className="px-2 py-2.5">
+        <Input
+          type="date"
+          className="h-8 w-36 px-2 text-sm"
+          defaultValue={item.requiredByDate ?? ''}
+          onBlur={(e) => onPatch({ requiredByDate: e.target.value || null })}
+        />
+      </td>
+      <td className={`px-2 py-2.5 ${urgencyClass}`}>
+        {item.orderByDate ? formatDate(item.orderByDate) : '—'}
+        {item.urgency === 'overdue' && ' ⚠'}
+      </td>
+      <td className="px-4 py-2.5">
+        <Select
+          className="h-8 w-32 px-2 text-sm"
+          value={item.orderStatus}
+          onChange={(e) => onPatch({ orderStatus: e.target.value as OrderStatus })}
+        >
+          {ORDER_STATUSES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </Select>
+      </td>
+    </tr>
+  );
+}
+
+function BudgetCard({ projectId }: { projectId: string }) {
+  const { data: b } = useQuery({
+    queryKey: ['budget', projectId],
+    queryFn: () => api.get<BudgetSummary>(`/projects/${projectId}/budget`),
+  });
+  if (!b || (b.budget == null && b.selected === 0)) return null;
+
+  const over = b.remaining != null && b.remaining < 0;
+  const pct =
+    b.budget != null && b.budget > 0
+      ? Math.min(100, Math.round((b.selected / b.budget) * 100))
+      : null;
+
+  return (
+    <Card className="mb-6 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-x-8 gap-y-2">
+          <BudgetStat label="Selected" value={formatCurrency(b.selected, b.currency)} />
+          <BudgetStat
+            label="Approved"
+            value={formatCurrency(b.approved, b.currency)}
+            className="text-success"
+          />
+          <BudgetStat label="Awaiting decision" value={formatCurrency(b.pending, b.currency)} />
+          {b.budget != null && (
+            <BudgetStat
+              label={over ? 'Over budget' : 'Remaining'}
+              value={formatCurrency(Math.abs(b.remaining ?? 0), b.currency)}
+              className={over ? 'text-destructive' : undefined}
+            />
+          )}
+        </div>
+        {b.budget != null && (
+          <div className="min-w-44 flex-1 sm:max-w-xs">
+            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+              <span>Budget {formatCurrency(b.budget, b.currency)}</span>
+              {pct != null && <span>{pct}%</span>}
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-secondary">
+              <div
+                className={`h-full rounded-full ${over ? 'bg-destructive' : 'bg-primary'}`}
+                style={{ width: `${pct ?? 0}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+      {b.multiCurrency && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Products use mixed currencies — totals are naive sums.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function BudgetStat({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`font-display text-lg font-medium ${className ?? ''}`}>{value}</p>
     </div>
   );
 }

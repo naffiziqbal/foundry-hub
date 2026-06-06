@@ -10,6 +10,7 @@ import {
   Clock,
   Plus,
   ArrowRight,
+  TrendingUp,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -19,8 +20,8 @@ import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/badge';
 import { Skeleton, EmptyState } from '@/components/ui/misc';
 import { ProjectDialog } from '@/components/dialogs/project-dialog';
-import { formatDate } from '@/lib/utils';
-import type { DashboardSummary } from '@/lib/types';
+import { formatCurrency, formatDate, titleCase } from '@/lib/utils';
+import type { CostEstimate, DashboardSummary } from '@/lib/types';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -83,6 +84,8 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {isDesigner && <CostInsightsCard />}
 
       {/* Recent projects */}
       <div className="mt-10">
@@ -147,5 +150,50 @@ export default function DashboardPage() {
 
       <ProjectDialog open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
+  );
+}
+
+function CostInsightsCard() {
+  const { data } = useQuery({
+    queryKey: ['cost-insights'],
+    queryFn: () => api.get<CostEstimate>('/insights/cost-estimate'),
+  });
+  if (!data?.overall || !data.byRoom.length) return null;
+
+  return (
+    <Card className="mt-6 p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <TrendingUp className="h-4 w-4 text-primary" />
+        <h2 className="font-medium">Cost insights</h2>
+        <span className="text-xs text-muted-foreground">
+          from {data.projectsAnalyzed} project{data.projectsAnalyzed === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-x-10 gap-y-3">
+        <div>
+          <p className="text-xs text-muted-foreground">Typical project total</p>
+          <p className="font-display text-xl font-medium">
+            {formatCurrency(data.overall.avgTotal, data.currency)}
+          </p>
+          {data.projectsAnalyzed > 1 && (
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(data.overall.minTotal, data.currency)} –{' '}
+              {formatCurrency(data.overall.maxTotal, data.currency)}
+            </p>
+          )}
+        </div>
+        {data.byRoom.slice(0, 4).map((r) => (
+          <div key={r.room}>
+            <p className="text-xs text-muted-foreground">{titleCase(r.room)}</p>
+            <p className="font-display text-xl font-medium">
+              {formatCurrency(r.avgTotal, data.currency)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              avg of {r.samples} project{r.samples === 1 ? '' : 's'}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }

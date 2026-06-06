@@ -36,6 +36,7 @@ export function ProjectDialog({
     startDate: '',
     endDate: '',
     notes: '',
+    budget: '',
     clientId: '',
   });
 
@@ -49,6 +50,7 @@ export function ProjectDialog({
         startDate: project?.startDate?.slice(0, 10) ?? '',
         endDate: project?.endDate?.slice(0, 10) ?? '',
         notes: project?.notes ?? '',
+        budget: project?.budget != null ? String(project.budget) : '',
         clientId: project?.clientId ?? '',
       });
     }
@@ -85,6 +87,7 @@ export function ProjectDialog({
       startDate: form.startDate || undefined,
       endDate: form.endDate || undefined,
       notes: form.notes || undefined,
+      budget: form.budget === '' ? null : Number(form.budget),
       clientId: form.clientId || undefined,
     };
     mutation.mutate(payload);
@@ -133,6 +136,18 @@ export function ProjectDialog({
             <Label htmlFor="endDate">End date</Label>
             <Input id="endDate" type="date" value={form.endDate} onChange={set('endDate')} />
           </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="budget">FF&amp;E budget (optional)</Label>
+          <Input
+            id="budget"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="e.g. 85000"
+            value={form.budget}
+            onChange={set('budget')}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="clientId">Assign client (for approvals)</Label>

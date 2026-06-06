@@ -9,6 +9,7 @@ import {
   Layers,
   LogOut,
   Menu,
+  Store,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
@@ -19,6 +20,7 @@ import { NotificationBell } from '@/components/notification-bell';
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
+  { href: '/vendors', label: 'Vendors', icon: Store, designerOnly: true },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -49,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAV.map((item) => {
+        {NAV.filter((item) => !item.designerOnly || user.role === 'designer').map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + '/');
           return (
