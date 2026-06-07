@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  Coins,
   LayoutDashboard,
   FolderKanban,
   Layers,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { useCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Avatar, PageSpinner } from '@/components/ui/misc';
 import { NotificationBell } from '@/components/notification-bell';
@@ -22,6 +24,28 @@ const NAV = [
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/vendors', label: 'Vendors', icon: Store, designerOnly: true },
 ];
+
+/** Navbar currency picker — all prices across the app render in this currency. */
+function CurrencySelect() {
+  const { currency, setCurrency, currencies } = useCurrency();
+  return (
+    <label className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-sm text-muted-foreground transition-colors focus-within:ring-2 focus-within:ring-ring hover:text-foreground">
+      <Coins className="h-4 w-4 shrink-0" />
+      <select
+        value={currency}
+        onChange={(e) => setCurrency(e.target.value)}
+        className="cursor-pointer appearance-none bg-transparent pr-1 text-sm font-medium text-foreground outline-none"
+        aria-label="Display currency"
+      >
+        {currencies.map((c) => (
+          <option key={c.code} value={c.code}>
+            {c.code}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -123,6 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <div className="flex-1" />
+          <CurrencySelect />
           <NotificationBell />
         </header>
 

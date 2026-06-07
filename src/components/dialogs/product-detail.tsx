@@ -23,6 +23,7 @@ import { Input, Label, Textarea, Select } from '@/components/ui/input';
 import { ApprovalBadge } from '@/components/ui/badge';
 import { Avatar, Separator } from '@/components/ui/misc';
 import { cn, formatCurrency, relativeTime } from '@/lib/utils';
+import { useCurrency } from '@/lib/currency';
 import type { Product, Comment, ProductSpec } from '@/lib/types';
 
 export function ProductDetailDialog({
@@ -38,6 +39,7 @@ export function ProductDetailDialog({
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { currency, formatPrice } = useCurrency();
   const isDesigner = user?.role === 'designer';
   const fileRef = useRef<HTMLInputElement>(null);
   const [edit, setEdit] = useState(false);
@@ -237,7 +239,17 @@ export function ProductDetailDialog({
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            <Info label="Price" value={formatCurrency(product.price, product.currency)} />
+            <Info
+              label="Price"
+              // Converted to the navbar currency; original scraped price shown
+              // alongside when it differs so the source value stays visible.
+              value={
+                product.price != null &&
+                product.currency?.toUpperCase() !== currency.toUpperCase()
+                  ? `${formatPrice(product.price, product.currency)} (${formatCurrency(product.price, product.currency)})`
+                  : formatPrice(product.price, product.currency)
+              }
+            />
             <Info label="Manufacturer" value={product.manufacturer} />
             <Info label="SKU" value={product.sku} />
             <Info label="Dimensions" value={product.dimensions} />

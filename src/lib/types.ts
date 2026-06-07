@@ -69,6 +69,10 @@ export interface Product {
   sku?: string | null;
   price?: number | null;
   currency: string;
+  /** Present when fetched with ?currency= — price converted server-side. */
+  displayPrice?: number | null;
+  displayCurrency?: string;
+  fxRate?: number | null;
   dimensions?: string | null;
   specifications: ProductSpec[];
   images: string[];
@@ -191,6 +195,10 @@ export interface ProcurementItem {
   vendorId?: string | null;
   price?: number | null;
   currency: string;
+  /** Present when fetched with ?currency= — price converted server-side. */
+  displayPrice?: number | null;
+  displayCurrency?: string;
+  fxRate?: number | null;
   imageUrl?: string | null;
   orderStatus: OrderStatus;
   leadTimeDays: number | null;

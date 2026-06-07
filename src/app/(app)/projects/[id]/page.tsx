@@ -31,6 +31,7 @@ import { Dialog, DialogHeader, DialogFooter } from '@/components/ui/dialog';
 import { Input, Label, Textarea, Select } from '@/components/ui/input';
 import { ProjectDialog } from '@/components/dialogs/project-dialog';
 import { formatCurrency, formatDate, titleCase } from '@/lib/utils';
+import { useCurrency } from '@/lib/currency';
 import type {
   BudgetSummary,
   OrderStatus,
@@ -58,6 +59,7 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
   const isDesigner = user?.role === 'designer';
 
   const [tab, setTab] = useState<Tab>('rooms');
@@ -277,7 +279,7 @@ export default function ProjectDetailPage() {
             <Detail label="End date" value={formatDate(project.endDate)} />
             <Detail
               label="FF&E budget"
-              value={project.budget != null ? formatCurrency(Number(project.budget)) : null}
+              value={project.budget != null ? formatPrice(Number(project.budget)) : null}
             />
             <Detail label="Notes" value={project.notes} />
           </dl>
@@ -418,6 +420,7 @@ function PurchaseOrdersSection({
   items: ProcurementItem[];
 }) {
   const qc = useQueryClient();
+  const { formatPrice } = useCurrency();
   const { data: pos } = useQuery({
     queryKey: ['purchase-orders', projectId],
     queryFn: () => api.get<PurchaseOrder[]>(`/projects/${projectId}/purchase-orders`),
@@ -509,7 +512,7 @@ function PurchaseOrdersSection({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {po.lines.length} line{po.lines.length === 1 ? '' : 's'} ·{' '}
-                  {formatCurrency(Number(po.total), po.currency)}
+                  {formatPrice(Number(po.total), po.currency)}
                   {po.discountPct != null && ` (incl. ${Number(po.discountPct)}% trade discount)`}
                 </p>
               </div>
@@ -551,6 +554,7 @@ function ProcurementRow({
   item: ProcurementItem;
   onPatch: (patch: any) => void;
 }) {
+  const { formatPrice } = useCurrency();
   const urgencyClass =
     item.urgency === 'overdue'
       ? 'text-destructive font-medium'
@@ -580,7 +584,7 @@ function ProcurementRow({
       <td className="px-2 py-2.5 text-muted-foreground">{item.roomName}</td>
       <td className="px-2 py-2.5 text-muted-foreground">{item.vendor ?? '—'}</td>
       <td className="px-2 py-2.5">
-        {item.price != null ? formatCurrency(item.price, item.currency) : '—'}
+        {item.price != null ? formatPrice(item.price, item.currency) : '—'}
       </td>
       <td className="px-2 py-2.5">
         <Input
@@ -625,9 +629,15 @@ function ProcurementRow({
 }
 
 function BudgetCard({ projectId }: { projectId: string }) {
+  // Server converts every total (and the budget) into the selected currency,
+  // so mixed-currency products sum correctly instead of naively.
+  const { currency } = useCurrency();
   const { data: b } = useQuery({
-    queryKey: ['budget', projectId],
-    queryFn: () => api.get<BudgetSummary>(`/projects/${projectId}/budget`),
+    queryKey: ['budget', projectId, currency],
+    queryFn: () =>
+      api.get<BudgetSummary>(
+        `/projects/${projectId}/budget?currency=${encodeURIComponent(currency)}`,
+      ),
   });
   if (!b || (b.budget == null && b.selected === 0)) return null;
 
@@ -673,7 +683,8 @@ function BudgetCard({ projectId }: { projectId: string }) {
       </div>
       {b.multiCurrency && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Products use mixed currencies — totals are naive sums.
+          Products use mixed currencies — totals converted to {b.currency} at
+          today&apos;s rates.
         </p>
       )}
     </Card>

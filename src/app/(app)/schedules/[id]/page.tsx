@@ -37,7 +37,8 @@ import { ApprovalBadge } from '@/components/ui/badge';
 import { Skeleton, EmptyState } from '@/components/ui/misc';
 import { Dialog, DialogHeader } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { formatCurrency, titleCase } from '@/lib/utils';
+import { titleCase } from '@/lib/utils';
+import { useCurrency } from '@/lib/currency';
 import type { Product, Schedule, ScheduleItem } from '@/lib/types';
 
 export default function ScheduleDetailPage() {
@@ -190,6 +191,7 @@ function SortableRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
+  const { formatPrice } = useCurrency();
   const p = item.product;
 
   return (
@@ -227,7 +229,7 @@ function SortableRow({
       </div>
       <ApprovalBadge status={p.approvalStatus} />
       <span className="hidden w-24 text-right font-medium sm:block">
-        {formatCurrency(p.price, p.currency)}
+        {formatPrice(p.price, p.currency)}
       </span>
       {canEdit && (
         <button
@@ -256,6 +258,7 @@ function AddProductsDialog({
   existingIds: string[];
 }) {
   const qc = useQueryClient();
+  const { formatPrice } = useCurrency();
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -312,7 +315,7 @@ function AddProductsDialog({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{p.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {formatCurrency(p.price, p.currency)}
+                  {formatPrice(p.price, p.currency)}
                 </p>
               </div>
               <Button

@@ -20,7 +20,8 @@ import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/badge';
 import { Skeleton, EmptyState } from '@/components/ui/misc';
 import { ProjectDialog } from '@/components/dialogs/project-dialog';
-import { formatCurrency, formatDate, titleCase } from '@/lib/utils';
+import { formatDate, titleCase } from '@/lib/utils';
+import { useCurrency } from '@/lib/currency';
 import type { CostEstimate, DashboardSummary } from '@/lib/types';
 
 export default function DashboardPage() {
@@ -154,6 +155,7 @@ export default function DashboardPage() {
 }
 
 function CostInsightsCard() {
+  const { formatPrice } = useCurrency();
   const { data } = useQuery({
     queryKey: ['cost-insights'],
     queryFn: () => api.get<CostEstimate>('/insights/cost-estimate'),
@@ -173,12 +175,12 @@ function CostInsightsCard() {
         <div>
           <p className="text-xs text-muted-foreground">Typical project total</p>
           <p className="font-display text-xl font-medium">
-            {formatCurrency(data.overall.avgTotal, data.currency)}
+            {formatPrice(data.overall.avgTotal, data.currency)}
           </p>
           {data.projectsAnalyzed > 1 && (
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(data.overall.minTotal, data.currency)} –{' '}
-              {formatCurrency(data.overall.maxTotal, data.currency)}
+              {formatPrice(data.overall.minTotal, data.currency)} –{' '}
+              {formatPrice(data.overall.maxTotal, data.currency)}
             </p>
           )}
         </div>
@@ -186,7 +188,7 @@ function CostInsightsCard() {
           <div key={r.room}>
             <p className="text-xs text-muted-foreground">{titleCase(r.room)}</p>
             <p className="font-display text-xl font-medium">
-              {formatCurrency(r.avgTotal, data.currency)}
+              {formatPrice(r.avgTotal, data.currency)}
             </p>
             <p className="text-xs text-muted-foreground">
               avg of {r.samples} project{r.samples === 1 ? '' : 's'}

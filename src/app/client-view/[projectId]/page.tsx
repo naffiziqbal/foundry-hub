@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ApprovalBadge, StatusBadge } from '@/components/ui/badge';
 import { Skeleton, EmptyState, PageSpinner } from '@/components/ui/misc';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/lib/currency';
 import type { Product, Project, Room } from '@/lib/types';
 
 export default function ClientViewPage() {
@@ -136,6 +136,7 @@ function ReviewCard({
   readOnly?: boolean;
 }) {
   const qc = useQueryClient();
+  const { formatPrice } = useCurrency();
   const decide = useMutation({
     mutationFn: (status: 'approved' | 'rejected') =>
       api.post(`/products/${product.id}/decision`, { status }),
@@ -166,7 +167,7 @@ function ReviewCard({
         {product.vendor && (
           <p className="text-xs text-muted-foreground">{product.vendor}</p>
         )}
-        <p className="mt-1 font-display">{formatCurrency(product.price, product.currency)}</p>
+        <p className="mt-1 font-display">{formatPrice(product.price, product.currency)}</p>
         {product.dimensions && (
           <p className="mt-1 text-xs text-muted-foreground">{product.dimensions}</p>
         )}

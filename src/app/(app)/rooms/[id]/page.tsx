@@ -15,7 +15,7 @@ import { Skeleton, EmptyState } from '@/components/ui/misc';
 import { Dialog, DialogHeader, DialogFooter } from '@/components/ui/dialog';
 import { Input, Label, Textarea } from '@/components/ui/input';
 import { ProductDetailDialog } from '@/components/dialogs/product-detail';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/lib/currency';
 import type { Product, Room } from '@/lib/types';
 
 export default function RoomDetailPage() {
@@ -107,6 +107,7 @@ export default function RoomDetailPage() {
 }
 
 function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
+  const { formatPrice } = useCurrency();
   const importing = ['pending', 'processing'].includes(product.importStatus);
   const failed = product.importStatus === 'failed';
   return (
@@ -145,7 +146,7 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
         )}
         <div className="mt-auto flex items-center justify-between pt-3">
           <span className="font-display text-base">
-            {formatCurrency(product.price, product.currency)}
+            {formatPrice(product.price, product.currency)}
           </span>
           {failed && (
             <span className="flex items-center gap-1 text-xs text-destructive">
